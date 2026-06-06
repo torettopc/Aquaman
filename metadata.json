@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Aquaman",
+  "description": "Um aplicativo de monitoramento e lembretes de consumo de água integrado com histórico diário, aba informativa sobre os benefícios da hidratação e cadastro de usuários.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
