@@ -42,12 +42,12 @@ export default function App() {
     icon: string;
   } | null>(null);
 
-  // Carregar os consumos de água do SQLite mapeados para o estado React
+  // Carregar os consumos de água do Supabase mapeados para o estado React
   const carregarConsumosDoUsuario = async (userId: number) => {
     try {
       const records = await Database.buscarTodosConsumosUsuario(userId);
       const mapped: WaterRecord[] = records.map(r => {
-        // Traduz o período do SQLite ('manhã', 'tarde', 'noite') de volta para o DayPeriod ('morning', 'afternoon', 'night')
+        // Traduz o período do Supabase ('manhã', 'tarde', 'noite') de volta para o DayPeriod ('morning', 'afternoon', 'night')
         let reactPeriod: DayPeriod = "morning";
         if (r.periodo === "tarde") {
           reactPeriod = "afternoon";
@@ -66,14 +66,14 @@ export default function App() {
       });
       setWaterRecords(mapped);
     } catch (e) {
-      console.error("Erro ao ler registros de consumo do SQLite:", e);
+      console.error("Erro ao ler registros de consumo do Supabase:", e);
     }
   };
 
   // Inicializa o banco de dados e carrega sessões ativas no primeiro render
   useEffect(() => {
     const bootstrapDb = async () => {
-      // 1. Inicializa Conexão e Tabelas no SQLite automaticamente ao abrir o app
+      // 1. Inicializa Conexão com o Supabase automaticamente ao abrir o app
       await Database.initDatabase();
 
       // 2. Carrega usuário ativo se houver sessão ativa persistida
@@ -82,7 +82,7 @@ export default function App() {
         try {
           const parsedUser = JSON.parse(active);
           
-          // Sincroniza meta diária direto da tabela 'configuracoes' do SQLite!
+          // Sincroniza meta diária direto da tabela 'configuracoes' do Supabase!
           const dbConfig = await Database.buscarConfiguracoes(Number(parsedUser.id));
           const currentGoal = dbConfig ? dbConfig.meta_diaria : parsedUser.dailyGoalMl;
           
@@ -92,7 +92,7 @@ export default function App() {
           };
           setCurrentUser(syncedUser);
           
-          // Carrega consumos reais do SQLite
+          // Carrega consumos reais do Supabase
           await carregarConsumosDoUsuario(Number(syncedUser.id));
         } catch {
           localStorage.removeItem("aquaman_active_user");
@@ -128,7 +128,7 @@ export default function App() {
     localStorage.setItem("aquaman_active_user", JSON.stringify(user));
     setScreen("dashboard");
     
-    // Carrega logs de consumo deste usuário vindos do SQLite
+    // Carrega logs de consumo deste usuário vindos do Supabase
     await carregarConsumosDoUsuario(Number(user.id));
     
     // Welcome Toast simulation
@@ -145,7 +145,7 @@ export default function App() {
     setWaterRecords([]);
   };
 
-  // Gravar consumo diretamente nas Tabelas SQLite
+  // Gravar consumo diretamente nas Tabelas do Supabase
   const handleSaveWaterRecord = async (amountMl: number, period: DayPeriod) => {
     if (!currentUser) return;
 
@@ -153,8 +153,8 @@ export default function App() {
     const mm = new Date().getMinutes().toString().padStart(2, "0");
     const todayStr = new Date().toISOString().split("T")[0];
 
-    // Converte a unidade do React ('morning' | 'afternoon' | 'night') para a tabela do SQLite ('manhã' | 'tarde' | 'noite')
-    const sqlitePeriod: 'manhã' | 'tarde' | 'noite' = 
+    // Converte a unidade do React ('morning' | 'afternoon' | 'night') para a tabela do Supabase ('manhã' | 'tarde' | 'noite')
+    const supabasePeriod: 'manhã' | 'tarde' | 'noite' = 
       period === 'afternoon' ? 'tarde' : period === 'night' ? 'noite' : 'manhã';
 
     try {
@@ -163,15 +163,15 @@ export default function App() {
         Number(currentUser.id),
         amountMl,
         'ml', // grava ml por padrão
-        sqlitePeriod,
+        supabasePeriod,
         `${hh}:${mm}`,
         todayStr
       );
 
-      // 2. Dispara recarregamento direto do banco SQLite
+      // 2. Dispara recarregamento direto do banco Supabase
       await carregarConsumosDoUsuario(Number(currentUser.id));
 
-      // 3. Calcula o total consumido hoje direto das tabelas do banco SQLite reais
+      // 3. Calcula o total consumido hoje direto das tabelas do banco Supabase reais
       const sumToday = await Database.calcularTotalConsumidoHoje(Number(currentUser.id));
 
       if (sumToday >= currentUser.dailyGoalMl && (sumToday - amountMl) < currentUser.dailyGoalMl) {
@@ -189,7 +189,7 @@ export default function App() {
         );
       }
     } catch (e) {
-      console.error("Erro ao persistir log no SQLite:", e);
+      console.error("Erro ao persistir log no Supabase:", e);
     }
   };
 
@@ -209,10 +209,10 @@ export default function App() {
   const handleDeleteRecord = async (id: string) => {
     if (!currentUser) return;
     try {
-      // Executa a query DELETE FROM no SQLite
+      // Executa a remoção no Supabase
       await Database.deletarConsumo(Number(id));
       
-      // Sincroniza o consumo atual do SQLite
+      // Sincroniza o consumo atual do Supabase
       await carregarConsumosDoUsuario(Number(currentUser.id));
     } catch (e) {
       console.error("Erro ao deletar consumo:", e);
@@ -276,7 +276,7 @@ export default function App() {
   const handleUpdateUserGoal = async (newGoalMl: number) => {
     if (!currentUser) return;
     try {
-      // 1. Atualizar e sincronizar na tabela 'configuracoes' do SQLite
+      // 1. Atualizar e sincronizar na tabela 'configuracoes' do Supabase
       const current_config = await Database.buscarConfiguracoes(Number(currentUser.id));
       await Database.salvarOuAtualizarConfiguracoes(
         Number(currentUser.id),
@@ -293,7 +293,7 @@ export default function App() {
 
       triggerSimulatedNotification(
         "Meta Sincronizada!",
-        `Sua nova meta diária é de ${newGoalMl}ml (atualizado no SQLite com sucesso!).`,
+        `Sua nova meta diária é de ${newGoalMl}ml (atualizado no Supabase com sucesso!).`,
         "🎯"
       );
     } catch (e) {
